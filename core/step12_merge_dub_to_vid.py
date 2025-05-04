@@ -17,15 +17,46 @@ DUB_VIDEO = "output/output_dub.mp4"
 DUB_SUB_FILE = 'output/dub.srt'
 DUB_AUDIO = 'output/dub.mp3'
 
-TRANS_FONT_SIZE = 20
-TRANS_FONT_NAME = 'Arial'
-if platform.system() == 'Linux':
-    TRANS_FONT_NAME = 'NotoSansCJK-Regular'
+def get_video_dimensions(video_file):
+    """Get video dimensions using OpenCV"""
+    cap = cv2.VideoCapture(video_file)
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+    return width, height
 
-TRANS_FONT_COLOR = '&H00FFFF'
-TRANS_OUTLINE_COLOR = '&H000000'
-TRANS_OUTLINE_WIDTH = 1 
-TRANS_BACK_COLOR = '&H33000000'
+def calculate_subtitle_style(width, height):
+    """Calculate subtitle style based on video dimensions"""
+    is_vertical = height > width
+    aspect_ratio = min(width, height) / max(width, height)
+    
+    # Base font size on video dimensions
+    base_font_size = min(width, height) / 36  # Adjust this divisor to change base font size
+    
+    # Adjust font size based on aspect ratio
+    font_size = int(base_font_size * (1 + (1 - aspect_ratio)))
+    
+    # Adjust margins based on orientation
+    if is_vertical:
+        margin_v = int(height / 20)  # Smaller bottom margin for vertical videos
+        max_line_length = int(width / (font_size * 0.6))  # Shorter lines for vertical videos
+    else:
+        margin_v = int(height / 10)  # Larger bottom margin for horizontal videos
+        max_line_length = int(width / (font_size * 0.5))  # Longer lines for horizontal videos
+    
+    # Font settings
+    font_name = 'NotoSansCJK-Regular' if platform.system() == 'Linux' else 'Arial'
+    
+    return {
+        'font_size': font_size,
+        'font_name': font_name,
+        'margin_v': margin_v,
+        'max_line_length': max_line_length,
+        'font_color': '&H00FFFF',
+        'outline_color': '&H000000',
+        'outline_width': 1,
+        'back_color': '&H33000000'
+    }
 
 def merge_video_audio():
     """Merge video and audio, and reduce video volume"""
@@ -45,16 +76,25 @@ def merge_video_audio():
         rprint("[bold green]Placeholder video has been generated.[/bold green]")
         return
 
+    # Get video dimensions and calculate subtitle style
+    video_width, video_height = get_video_dimensions(VIDEO_FILE)
+    subtitle_style = calculate_subtitle_style(video_width, video_height)
+    
     # Merge video and audio with translated subtitles
     dub_volume = load_key("dub_volume")
     resolution = load_key("resolution")
-    target_width, target_height = resolution.split('x')
+    
+    # Use original dimensions if resolution is set to 'original'
+    if resolution == 'original':
+        target_width, target_height = video_width, video_height
+    else:
+        target_width, target_height = resolution.split('x')
     
     subtitle_filter = (
-        f"subtitles={DUB_SUB_FILE}:force_style='FontSize={TRANS_FONT_SIZE},"
-        f"FontName={TRANS_FONT_NAME},PrimaryColour={TRANS_FONT_COLOR},"
-        f"OutlineColour={TRANS_OUTLINE_COLOR},OutlineWidth={TRANS_OUTLINE_WIDTH},"
-        f"BackColour={TRANS_BACK_COLOR},Alignment=2,MarginV=27,BorderStyle=4'"
+        f"subtitles={DUB_SUB_FILE}:force_style='FontSize={subtitle_style['font_size']},"
+        f"FontName={subtitle_style['font_name']},PrimaryColour={subtitle_style['font_color']},"
+        f"OutlineColour={subtitle_style['outline_color']},OutlineWidth={subtitle_style['outline_width']},"
+        f"BackColour={subtitle_style['back_color']},Alignment=2,MarginV={subtitle_style['margin_v']},BorderStyle=4'"
     )
     
     cmd = [

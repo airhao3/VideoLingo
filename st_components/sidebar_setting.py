@@ -57,6 +57,7 @@ def page_setting():
         burn_subtitles = st.toggle("Burn-in Subtitles", value=load_key("resolution") != "0x0", help="takes longer time")
         
         resolution_options = {
+            "Original": "original",
             "1080p": "1920x1080",
             "360p": "640x360"
         }

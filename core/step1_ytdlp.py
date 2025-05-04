@@ -13,14 +13,12 @@ def sanitize_filename(filename):
     # Use default name if filename is empty
     return filename if filename else 'video'
 
-def download_video_ytdlp(url, save_path='output', resolution='1080', cutoff_time=None):
-    allowed_resolutions = ['360', '1080', 'best']
-    if resolution not in allowed_resolutions:
-        resolution = '360'
-    
+def download_video_ytdlp(url, save_path='output', resolution='original', cutoff_time=None):
     os.makedirs(save_path, exist_ok=True)
+    
+    # Always use best quality available
     ydl_opts = {
-        'format': 'bestvideo+bestaudio/best' if resolution == 'best' else f'bestvideo[height<={resolution}]+bestaudio/best[height<={resolution}]',
+        'format': 'bestvideo+bestaudio/best',
         'outtmpl': f'{save_path}/%(title)s.%(ext)s',
         'noplaylist': True,
         'writethumbnail': True,

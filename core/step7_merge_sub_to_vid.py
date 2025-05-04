@@ -40,8 +40,18 @@ def check_gpu_available():
 
 def merge_subtitles_to_video():
     RESOLUTION = load_key("resolution")
-    TARGET_WIDTH, TARGET_HEIGHT = RESOLUTION.split('x')
     video_file = find_video_files()
+    if RESOLUTION.lower() == "original":
+        cap = cv2.VideoCapture(video_file)
+        if not cap.isOpened():
+            rprint("Error: Unable to open video file.")
+            exit(1)
+        TARGET_WIDTH = str(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)))
+        TARGET_HEIGHT = str(int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+        cap.release()
+    else:
+        TARGET_WIDTH, TARGET_HEIGHT = RESOLUTION.split('x')
+
     os.makedirs(os.path.dirname(OUTPUT_VIDEO), exist_ok=True)
 
     # Check resolution
