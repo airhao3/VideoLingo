@@ -50,7 +50,22 @@ def text_processing_section():
             if st.button("Archive to 'history'", key="cleanup_in_text_processing"):
                 cleanup()
                 st.rerun()
-            return True
+
+        # 新增清理output目录按钮
+        if st.button("Clear Output Directory", key="clear_output_button"):
+            for f in os.listdir("output"):
+                file_path = os.path.join("output", f)
+                try:
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                    elif os.path.isdir(file_path):
+                        import shutil
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    st.warning(f"Failed to delete {file_path}: {e}")
+            st.success("Output directory cleared. You can now upload a new video.")
+
+        return True
 
 def process_text():
     with st.spinner("Using Whisper for transcription..."):
