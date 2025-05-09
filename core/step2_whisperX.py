@@ -16,7 +16,6 @@ import time
 from core.config_utils import load_key
 from core.all_whisper_methods.demucs_vl import demucs_main, RAW_AUDIO_FILE, VOCAL_AUDIO_FILE
 from core.all_whisper_methods.whisperX_utils import process_transcription, convert_video_to_audio, split_audio, save_results, save_language, compress_audio, CLEANED_CHUNKS_EXCEL_PATH
-from core.step1_ytdlp import find_video_files
 
 MODEL_DIR = load_key("model_dir")
 WHISPER_FILE = "output/audio/for_whisper.mp3"
@@ -164,7 +163,10 @@ def transcribe():
         return
     
     # step0 Convert video to audio
-    video_file = find_video_files()
+    video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+    if len(video_files) != 1:
+        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
+    video_file = os.path.join('output', video_files[0])
     convert_video_to_audio(video_file)
 
     # step1 Demucs vocal separation:

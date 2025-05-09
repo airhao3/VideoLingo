@@ -47,68 +47,6 @@ reflect_translate: true
 # *是否在提取专业术语后、翻译前暂停，让用户手动调整术语表 output\log\terminology.json
 pause_before_translate: false
 
-## ======================== 配音设置 ======================== ##
-# TTS 选择 [sf_fish_tts, openai_tts, gpt_sovits, azure_tts, fish_tts, edge_tts, custom_tts]
-tts_method: 'sf_fish_tts'
-
-# SiliconFlow FishTTS
-sf_fish_tts:
-  # SiliconFlow API key
-  api_key: 'YOUR_API_KEY'
-  # 仅用于 "preset" 模式
-  voice: 'anna'
-  # *仅用于 "custom" 模式，不要手动设置
-  custom_name: ''
-  voice_id: ''
-  # preset, custom, dynamic
-  mode: "preset"
-
-# OpenAI TTS-1 API 配置, 仅限 302.ai API
-openai_tts:
-  api_key: 'YOUR_302_API_KEY'
-  voice: 'alloy'
-
-# Azure 配置, 仅限 302.ai API
-azure_tts:
-  api_key: 'YOUR_302_API_KEY'
-  voice: 'zh-CN-YunfengNeural'
-
-# FishTTS 配置, 仅限 302.ai API
-fish_tts:
-  api_key: 'YOUR_302_API_KEY'
-  character: 'AD学姐'
-  character_id_dict:
-    'AD学姐': '7f92f8afb8ec43bf81429cc1c9199cb1'
-    '丁真': '54a5170264694bfc8e9ad98df7bd89c3'
-
-# Edge TTS 配置
-edge_tts:
-  voice: 'zh-CN-XiaoxiaoNeural'
-
-# SoVITS 配置
-gpt_sovits:
-  character: 'Huanyuv2'
-  refer_mode: 3
-
-# *音频速度范围
-speed_factor:
-  min: 1
-  accept: 1.2 # 可以接受的最大速度
-  max: 1.4
-
-# *合并音频配置
-min_subtitle_duration: 2.5 # 最小字幕出现时间 会强制扩展
-min_trim_duration: 3.5 # 小于这个值的字幕不会切割
-tolerance: 1.5 # 允许向后延申的时间
-
-# 音量设置
-dub_volume: 1.5  # *配音音频音量（1.5 = 150%，大多数原始配音音频相对较安静）
-
-
-
-
-
-
 ## ======================== 附加设置 请勿修改 ======================== ##
 # Whisper 模型目录
 model_dir: './_model_cache'

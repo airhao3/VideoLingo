@@ -1,7 +1,6 @@
 import os, subprocess, time, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.config_utils import load_key
-from core.step1_ytdlp import find_video_files
 from rich import print as rprint
 import cv2
 import numpy as np
@@ -40,7 +39,10 @@ def check_gpu_available():
 
 def merge_subtitles_to_video():
     RESOLUTION = load_key("resolution")
-    video_file = find_video_files()
+    video_files = [f for f in os.listdir(OUTPUT_DIR) if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+    if len(video_files) != 1:
+        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
+    video_file = os.path.join(OUTPUT_DIR, video_files[0])
     if RESOLUTION.lower() == "original":
         cap = cv2.VideoCapture(video_file)
         if not cap.isOpened():

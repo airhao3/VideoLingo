@@ -9,7 +9,6 @@ from core.step3_2_splitbymeaning import split_sentence
 from core.ask_gpt import ask_gpt
 from core.prompts_storage import get_align_prompt
 from core.config_utils import load_key, get_joiner
-from core.step1_ytdlp import find_video_files
 from rich.panel import Panel
 from rich.console import Console
 from rich.table import Table
@@ -73,7 +72,10 @@ def align_subs(src_sub: str, tr_sub: str, src_part: str) -> Tuple[List[str], Lis
 
 def get_video_dimensions():
     """Get video dimensions and calculate max subtitle length"""
-    video_file = find_video_files()
+    video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+    if len(video_files) != 1:
+        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
+    video_file = os.path.join('output', video_files[0])
     cap = cv2.VideoCapture(video_file)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

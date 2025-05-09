@@ -172,3 +172,6 @@ config.backup.yaml
 runtime/
 dev/
 installer_files/
+
+# 忽略包含敏感信息的配置文件
+config.yaml

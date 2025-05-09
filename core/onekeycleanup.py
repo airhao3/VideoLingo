@@ -1,12 +1,14 @@
 import os, sys
 import glob
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core.step1_ytdlp import find_video_files
 import shutil
 
 def cleanup(history_dir="history"):
     # Get video file name
-    video_file = find_video_files()
+    video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+    if len(video_files) != 1:
+        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
+    video_file = os.path.join('output', video_files[0])
     video_name = video_file.split("/")[1]
     video_name = os.path.splitext(video_name)[0]
     video_name = sanitize_filename(video_name)
