@@ -14,12 +14,16 @@ import tempfile
 import time
 
 from core.config_utils import load_key
-from core.all_whisper_methods.demucs_vl import demucs_main, RAW_AUDIO_FILE, VOCAL_AUDIO_FILE
-from core.all_whisper_methods.whisperX_utils import process_transcription, convert_video_to_audio, split_audio, save_results, save_language, compress_audio, CLEANED_CHUNKS_EXCEL_PATH
+from core.all_whisper_methods.demucs_vl import demucs_main, get_raw_audio_file, get_vocal_audio_file, get_background_audio_file
+from core.all_whisper_methods.whisperX_utils import process_transcription, convert_video_to_audio, split_audio, save_results, save_language, compress_audio, get_cleaned_chunks_excel_path
 
 MODEL_DIR = load_key("model_dir")
-WHISPER_FILE = "output/audio/for_whisper.mp3"
-ENHANCED_VOCAL_PATH = "output/audio/enhanced_vocals.mp3"
+def get_whisper_file(history_dir):
+    return os.path.join(history_dir, "audio", "for_whisper.mp3")
+def get_enhanced_vocal_path(history_dir):
+    return os.path.join(history_dir, "audio", "enhanced_vocals.mp3")
+def get_cleaned_chunks_excel_path(history_dir):
+    return os.path.join(history_dir, "log", "cleaned_chunks.xlsx")
 
 def check_hf_mirror() -> str:
     """Check and return the fastest HF mirror"""
@@ -138,62 +142,59 @@ def transcribe_audio(audio_file: str, start: float, end: float) -> Dict:
         rprint(f"[red]WhisperX processing error:[/red] {e}")
         raise
 
-def enhance_vocals(vocals_ratio=2.50):
+def enhance_vocals(history_dir, vocals_ratio=2.50):
     """Enhance vocals audio volume"""
     if not load_key("demucs"):
-        return RAW_AUDIO_FILE
-        
+        return get_raw_audio_file(history_dir)
     try:
         print(f"[cyan]🎙️ Enhancing vocals with volume ratio: {vocals_ratio}[/cyan]")
+        vocal_audio_file = get_vocal_audio_file(history_dir)
+        enhanced_vocal_path = get_enhanced_vocal_path(history_dir)
         ffmpeg_cmd = (
-            f'ffmpeg -y -i "{VOCAL_AUDIO_FILE}" '
+            f'ffmpeg -y -i "{vocal_audio_file}" '
             f'-filter:a "volume={vocals_ratio}" '
-            f'"{ENHANCED_VOCAL_PATH}"'
+            f'"{enhanced_vocal_path}"'
         )
         subprocess.run(ffmpeg_cmd, shell=True, check=True, capture_output=True)
-        
-        return ENHANCED_VOCAL_PATH
+        return enhanced_vocal_path
     except subprocess.CalledProcessError as e:
         print(f"[red]Error enhancing vocals: {str(e)}[/red]")
-        return VOCAL_AUDIO_FILE  # Fallback to original vocals if enhancement fails
+        return vocal_audio_file  # Fallback to original vocals if enhancement fails
     
-def transcribe():
-    if os.path.exists(CLEANED_CHUNKS_EXCEL_PATH):
+def transcribe(history_dir):
+    os.makedirs(os.path.join(history_dir, "audio"), exist_ok=True)
+    os.makedirs(os.path.join(history_dir, "log"), exist_ok=True)
+    cleaned_chunks_excel_path = get_cleaned_chunks_excel_path(history_dir)
+    if os.path.exists(cleaned_chunks_excel_path):
         rprint("[yellow]⚠️ Transcription results already exist, skipping transcription step.[/yellow]")
         return
-    
     # step0 Convert video to audio
-    video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+    video_files = [f for f in os.listdir(history_dir) if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
     if len(video_files) != 1:
-        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
-    video_file = os.path.join('output', video_files[0])
-    convert_video_to_audio(video_file)
-
+        raise FileNotFoundError('Please upload exactly one video file to the history directory.')
+    video_file = os.path.join(history_dir, video_files[0])
+    convert_video_to_audio(video_file, history_dir)
     # step1 Demucs vocal separation:
     if load_key("demucs"):
-        demucs_main()
-    
+        demucs_main(history_dir)
     # step2 Compress audio
-    choose_audio = enhance_vocals() if load_key("demucs") else RAW_AUDIO_FILE
-    whisper_audio = compress_audio(choose_audio, WHISPER_FILE)
-
+    choose_audio = enhance_vocals(history_dir) if load_key("demucs") else get_raw_audio_file(history_dir)
+    whisper_file = get_whisper_file(history_dir)
+    whisper_audio = compress_audio(choose_audio, whisper_file)
     # step3 Extract audio
-    segments = split_audio(whisper_audio)
-    
+    segments = split_audio(whisper_audio, history_dir)
     # step4 Transcribe audio
     all_results = []
     for start, end in segments:
         result = transcribe_audio(whisper_audio, start, end)
         all_results.append(result)
-    
     # step5 Combine results
     combined_result = {'segments': []}
     for result in all_results:
         combined_result['segments'].extend(result['segments'])
-    
     # step6 Process df
-    df = process_transcription(combined_result)
-    save_results(df)
+    df = process_transcription(combined_result, history_dir)
+    save_results(df, history_dir)
         
 if __name__ == "__main__":
     transcribe()

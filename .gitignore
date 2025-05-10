@@ -151,8 +151,8 @@ dmypy.json
 cython_debug/
 
 # history and output
-/output/
-/history/
+output/
+history/
 _model_cache/
 
 batch/input/

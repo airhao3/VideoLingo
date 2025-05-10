@@ -14,15 +14,19 @@ from difflib import SequenceMatcher
 
 console = Console()
 
-SENTENCE_SPLIT_FILE = "output/log/sentence_splitbymeaning.txt"
-TRANSLATION_RESULTS_FILE = "output/log/translation_results.xlsx"
-TERMINOLOGY_FILE = "output/log/terminology.json"
-CLEANED_CHUNKS_FILE = "output/log/cleaned_chunks.xlsx"
+def get_sentence_split_file(history_dir):
+    return os.path.join(history_dir, "log", "sentence_splitbymeaning.txt")
+def get_translation_results_file(history_dir):
+    return os.path.join(history_dir, "log", "translation_results.xlsx")
+def get_terminology_file(history_dir):
+    return os.path.join(history_dir, "log", "terminology.json")
+def get_cleaned_chunks_file(history_dir):
+    return os.path.join(history_dir, "log", "cleaned_chunks.xlsx")
 
 # Function to split text into chunks
-def split_chunks_by_chars(chunk_size=400, max_i=8): 
+def split_chunks_by_chars(history_dir, chunk_size=400, max_i=8): 
     """Split text into chunks based on character count, return a list of multi-line text chunks"""
-    with open(SENTENCE_SPLIT_FILE, "r", encoding="utf-8") as file:
+    with open(get_sentence_split_file(history_dir), "r", encoding="utf-8") as file:
         sentences = file.read().strip().split('\n')
 
     chunks = []
@@ -46,8 +50,8 @@ def get_after_content(chunks, chunk_index):
     return None if chunk_index == len(chunks) - 1 else chunks[chunk_index + 1].split('\n')[:2] # Get first 2 lines
 
 # 🔍 Translate a single chunk
-def translate_chunk(chunk, chunks, theme_prompt, i):
-    things_to_note_prompt = search_things_to_note_in_prompt(chunk)
+def translate_chunk(chunk, chunks, theme_prompt, i, history_dir):
+    things_to_note_prompt = search_things_to_note_in_prompt(chunk, history_dir)
     previous_content_prompt = get_previous_content(chunks, i)
     after_content_prompt = get_after_content(chunks, i)
     translation, english_result = translate_lines(chunk, previous_content_prompt, after_content_prompt, things_to_note_prompt, theme_prompt, i)
@@ -58,15 +62,15 @@ def similar(a, b):
     return SequenceMatcher(None, a, b).ratio()
 
 # 🚀 Main function to translate all chunks
-def translate_all():
+def translate_all(history_dir):
     # Check if the file exists
-    if os.path.exists(TRANSLATION_RESULTS_FILE):
+    if os.path.exists(get_translation_results_file(history_dir)):
         console.print(Panel("🚨 File `translation_results.xlsx` already exists, skipping TRANSLATE ALL.", title="Warning", border_style="yellow"))
         return
     
     console.print("[bold green]Start Translating All...[/bold green]")
-    chunks = split_chunks_by_chars(chunk_size=500, max_i=10)
-    with open(TERMINOLOGY_FILE, 'r', encoding='utf-8') as file:
+    chunks = split_chunks_by_chars(history_dir, chunk_size=500, max_i=10)
+    with open(get_terminology_file(history_dir), 'r', encoding='utf-8') as file:
         theme_prompt = json.load(file).get('theme')
 
     # 🔄 Use concurrent execution for translation
@@ -79,7 +83,7 @@ def translate_all():
         with concurrent.futures.ThreadPoolExecutor(max_workers=load_key("max_workers")) as executor:
             futures = []
             for i, chunk in enumerate(chunks):
-                future = executor.submit(translate_chunk, chunk, chunks, theme_prompt, i)
+                future = executor.submit(translate_chunk, chunk, chunks, theme_prompt, i, history_dir)
                 futures.append(future)
 
             results = []
@@ -111,14 +115,14 @@ def translate_all():
         trans_text.extend(best_match[0][2].split('\n'))
     
     # Trim long translation text
-    df_text = pd.read_excel(CLEANED_CHUNKS_FILE)
+    df_text = pd.read_excel(get_cleaned_chunks_file(history_dir))
     df_text['text'] = df_text['text'].str.strip('"').str.strip()
     df_translate = pd.DataFrame({'Source': src_text, 'Translation': trans_text})
     subtitle_output_configs = [('trans_subs_for_audio.srt', ['Translation'])]
     df_time = align_timestamp(df_text, df_translate, subtitle_output_configs, output_dir=None, for_display=False)
     console.print(df_time)
     
-    df_time.to_excel(TRANSLATION_RESULTS_FILE, index=False)
+    df_time.to_excel(get_translation_results_file(history_dir), index=False)
     console.print("[bold green]✅ Translation completed and results saved.[/bold green]")
 
 if __name__ == '__main__':

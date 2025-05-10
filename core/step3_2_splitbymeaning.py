@@ -109,10 +109,31 @@ def parallel_split_sentences(sentences, max_length, max_workers, nlp, retry_atte
 
     return [sentence for sublist in new_sentences for sentence in sublist]
 
-def split_sentences_by_meaning():
-    """The main function to split sentences by meaning."""
-    # read input sentences
-    with open('output/log/sentence_splitbynlp.txt', 'r', encoding='utf-8') as f:
+def split_sentences_by_meaning(history_dir):
+    """The main function to split sentences by meaning. 自动查找log目录下最新分句文件作为输入。"""
+    import glob
+    log_dir = os.path.join(history_dir, 'log')
+    candidate_names = [
+        'sentence_splitbynlp.txt',
+        'sentence_splitbyroot.txt',
+        'sentence_splitbyconnector.txt',
+        'sentence_by_comma.txt',
+        'sentence_by_mark.txt',
+    ]
+    input_path = None
+    for name in candidate_names:
+        path = os.path.join(log_dir, name)
+        if os.path.exists(path):
+            input_path = path
+            break
+    if input_path is None:
+        # fallback: 取log目录下最新的txt文件
+        txt_files = sorted(glob.glob(os.path.join(log_dir, '*.txt')), key=os.path.getmtime, reverse=True)
+        if txt_files:
+            input_path = txt_files[0]
+    if input_path is None or not os.path.exists(input_path):
+        raise FileNotFoundError('No suitable sentence split file found in history_dir/log/.')
+    with open(input_path, 'r', encoding='utf-8') as f:
         sentences = [line.strip() for line in f.readlines()]
 
     nlp = init_nlp()
@@ -120,10 +141,11 @@ def split_sentences_by_meaning():
     for retry_attempt in range(3):
         sentences = parallel_split_sentences(sentences, max_length=load_key("max_split_length"), max_workers=load_key("max_workers"), nlp=nlp, retry_attempt=retry_attempt)
 
-    # 💾 save results
-    with open('output/log/sentence_splitbymeaning.txt', 'w', encoding='utf-8') as f:
+    output_path = os.path.join(history_dir, 'log', 'sentence_splitbymeaning.txt')
+    with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(sentences))
-    console.print('[green]✅ All sentences have been successfully split![/green]')
+    console.print(f'[green]✅ All sentences have been successfully split and saved to →  `{output_path}`[/green]')
+
 
 if __name__ == '__main__':
     # print(split_sentence('Which makes no sense to the... average guy who always pushes the character creation slider all the way to the right.', 2, 22))

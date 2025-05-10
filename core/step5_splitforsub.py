@@ -15,10 +15,13 @@ from rich.table import Table
 
 console = Console()
 
-# Constants
-INPUT_FILE = "output/log/translation_results.xlsx"
-OUTPUT_SPLIT_FILE = "output/log/translation_results_for_subtitles.xlsx"
-OUTPUT_REMERGED_FILE = "output/log/translation_results_remerged.xlsx"
+# Path helpers
+def get_input_file(history_dir):
+    return os.path.join(history_dir, "log", "translation_results.xlsx")
+def get_output_split_file(history_dir):
+    return os.path.join(history_dir, "log", "translation_results_for_subtitles.xlsx")
+def get_output_remerged_file(history_dir):
+    return os.path.join(history_dir, "log", "translation_results_remerged.xlsx")
 
 # ! You can modify your own weights here
 # Chinese and Japanese 2.5 characters, Korean 2 characters, Thai 1.5 characters, full-width symbols 2 characters, other English-based and half-width symbols 1 character
@@ -70,37 +73,41 @@ def align_subs(src_sub: str, tr_sub: str, src_part: str) -> Tuple[List[str], Lis
     
     return src_parts, tr_parts, tr_remerged
 
-def get_video_dimensions():
-    """Get video dimensions and calculate max subtitle length"""
-    video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
+def get_video_dimensions(history_dir):
+    """Get video dimensions and calculate max subtitle length from session directory"""
+    # Look for video in the session directory (root or audio subdir)
+    video_exts = ['mp4','mov','avi','mkv','flv','wmv','webm']
+    video_files = []
+    # Check root of history_dir
+    for f in os.listdir(history_dir):
+        if f.split('.')[-1].lower() in video_exts:
+            video_files.append(os.path.join(history_dir, f))
+    # Check audio/ subdir
+    audio_dir = os.path.join(history_dir, 'audio')
+    if os.path.isdir(audio_dir):
+        for f in os.listdir(audio_dir):
+            if f.split('.')[-1].lower() in video_exts:
+                video_files.append(os.path.join(audio_dir, f))
     if len(video_files) != 1:
-        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
-    video_file = os.path.join('output', video_files[0])
+        raise FileNotFoundError('Please upload exactly one video file to the current session directory.')
+    video_file = video_files[0]
     cap = cv2.VideoCapture(video_file)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     cap.release()
-    
     is_vertical = height > width
     aspect_ratio = min(width, height) / max(width, height)
-    
-    # Calculate base subtitle length based on video width
     base_length = width / 15  # Approximate character width
-    
-    # Adjust length based on orientation
     if is_vertical:
         max_length = int(base_length * 0.6)  # Shorter lines for vertical videos
     else:
         max_length = int(base_length * 0.8)  # Longer lines for horizontal videos
-    
-    # Adjust based on aspect ratio (narrower videos get shorter lines)
     max_length = int(max_length * (0.8 + 0.2 * aspect_ratio))
-    
     return max_length
 
-def split_align_subs(src_lines: List[str], tr_lines: List[str]) -> Tuple[List[str], List[str], List[str]]:
+def split_align_subs(src_lines: List[str], tr_lines: List[str], history_dir) -> Tuple[List[str], List[str], List[str]]:
     subtitle_set = load_key("subtitle")
-    MAX_SUB_LENGTH = get_video_dimensions()
+    MAX_SUB_LENGTH = get_video_dimensions(history_dir)
     TARGET_SUB_MULTIPLIER = subtitle_set["target_multiplier"]
     
     # Make copies of input lists
@@ -182,11 +189,11 @@ def split_align_subs(src_lines: List[str], tr_lines: List[str]) -> Tuple[List[st
     
     return src_lines, tr_lines, remerged_tr_lines
 
-def split_for_sub_main():
+def split_for_sub_main(history_dir):
     console.print("[bold green]🚀 Start splitting subtitles...[/bold green]")
     
     try:
-        df = pd.read_excel(INPUT_FILE)
+        df = pd.read_excel(get_input_file(history_dir))
         src = df['Source'].tolist()
         trans = df['Translation'].tolist()
         
@@ -195,7 +202,7 @@ def split_for_sub_main():
             raise ValueError(f"Input lists have different lengths: src={len(src)}, trans={len(trans)}")
         
         # Get dynamic subtitle length based on video dimensions
-        MAX_SUB_LENGTH = get_video_dimensions()
+        MAX_SUB_LENGTH = get_video_dimensions(history_dir)
         subtitle_set = load_key("subtitle")
         TARGET_SUB_MULTIPLIER = subtitle_set["target_multiplier"]
         
@@ -211,7 +218,7 @@ def split_for_sub_main():
             console.print(Panel(f"🔄 Split attempt {attempt + 1}", expand=False))
             
             # Make copies to prevent modifying original data
-            split_src, split_trans, remerged = split_align_subs(list(src), list(trans))
+            split_src, split_trans, remerged = split_align_subs(list(src), list(trans), history_dir)
             
             # Skip if lengths don't match
             if len(split_src) != len(split_trans):
@@ -252,12 +259,12 @@ def split_for_sub_main():
         pd.DataFrame({
             'Source': best_split_src,
             'Translation': best_split_trans
-        }).to_excel(OUTPUT_SPLIT_FILE, index=False)
+        }).to_excel(get_output_split_file(history_dir), index=False)
         
         pd.DataFrame({
             'Source': best_split_src,
             'Translation': best_remerged
-        }).to_excel(OUTPUT_REMERGED_FILE, index=False)
+        }).to_excel(get_output_remerged_file(history_dir), index=False)
         
         console.print("[bold green]✅ Subtitle splitting completed successfully![/bold green]")
         console.print(f"[cyan]ℹ Final statistics:[/cyan]")

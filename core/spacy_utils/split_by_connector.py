@@ -124,29 +124,23 @@ def split_by_connectors(text, context_words=5, nlp=None):
     
     return sentences
 
-def split_sentences_main(nlp):
-    # Read input sentences
-    with open("output/log/sentence_by_comma.txt", "r", encoding="utf-8") as input_file:
+def split_sentences_main(nlp, history_dir):
+    sentence_by_comma_path = os.path.join(history_dir, "log", "sentence_by_comma.txt")
+    with open(sentence_by_comma_path, "r", encoding="utf-8") as input_file:
         sentences = input_file.readlines()
-    
     all_split_sentences = []
-    # Process each input sentence
     for sentence in sentences:
         split_sentences = split_by_connectors(sentence.strip(), nlp = nlp)
         all_split_sentences.extend(split_sentences)
-    
-    # output to sentence_splitbyconnector.txt
-    with open("output/log/sentence_splitbyconnector.txt", "w+", encoding="utf-8") as output_file:
+    sentence_splitbyconnector_path = os.path.join(history_dir, "log", "sentence_splitbyconnector.txt")
+    with open(sentence_splitbyconnector_path, "w+", encoding="utf-8") as output_file:
         for sentence in all_split_sentences:
             output_file.write(sentence + "\n")
         # do not add a newline at the end of the file
         output_file.seek(output_file.tell() - 1, os.SEEK_SET)
         output_file.truncate()
-
-    # delete the original file
-    os.remove("output/log/sentence_by_comma.txt")
-    
-    print("[green]💾 Sentences split by connectors saved to →  `sentence_splitbyconnector.txt`[/green]")
+    os.remove(sentence_by_comma_path)
+    print(f"[green]💾 Sentences split by connectors saved to →  `{sentence_splitbyconnector_path}`[/green]")
 
 if __name__ == "__main__":
     nlp = init_nlp()

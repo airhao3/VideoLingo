@@ -62,9 +62,9 @@ def split_extremely_long_sentence(doc):
 
 
 
-def split_long_by_root_main(nlp):
-
-    with open("output/log/sentence_splitbyconnector.txt", "r", encoding="utf-8") as input_file:
+def split_long_by_root_main(nlp, history_dir):
+    sentence_splitbyconnector_path = os.path.join(history_dir, "log", "sentence_splitbyconnector.txt")
+    with open(sentence_splitbyconnector_path, "r", encoding="utf-8") as input_file:
         sentences = input_file.readlines()
 
     all_split_sentences = []
@@ -81,7 +81,8 @@ def split_long_by_root_main(nlp):
 
     punctuation = string.punctuation + "'" + '"'  # include all punctuation and apostrophe ' and "
 
-    with open("output/log/sentence_splitbynlp.txt", "w", encoding="utf-8") as output_file:
+    sentence_splitbyroot_path = os.path.join(history_dir, "log", "sentence_splitbyroot.txt")
+    with open(sentence_splitbyroot_path, "w", encoding="utf-8") as output_file:
         for i, sentence in enumerate(all_split_sentences):
             stripped_sentence = sentence.strip()
             if not stripped_sentence or all(char in punctuation for char in stripped_sentence):
@@ -92,13 +93,13 @@ def split_long_by_root_main(nlp):
             output_file.write(sentence + "\n")
 
     # delete the original file
-    os.remove("output/log/sentence_splitbyconnector.txt")   
-
-    print("[green]💾 Long sentences split by root saved to →  `sentence_splitbynlp.txt`[/green]")
+    if os.path.exists(sentence_splitbyconnector_path):
+        os.remove(sentence_splitbyconnector_path)
+    print(f"[green]💾 Sentences split by root saved to →  `{sentence_splitbyroot_path}`[/green]")
 
 if __name__ == "__main__":
     nlp = init_nlp()
-    split_long_by_root_main(nlp)
+    split_long_by_root_main(nlp, "/home/zhang3/projects/video-dl/videolingo/core/spacy_utils/")
     # raw = "平口さんの盛り上げごまが初めて売れました本当に嬉しいです本当にやっぱり見た瞬間いいって言ってくれるそういうコマを作るのがやっぱりいいですよねその2ヶ月後チコさんが何やらそわそわしていましたなんか気持ち悪いやってきたのは平口さんの駒の評判を聞きつけた愛知県の収集家ですこの男性師匠大沢さんの駒も持っているといいますちょっと褒めすぎかなでも確実にファンは広がっているようです自信がない部分をすごく感じてたのでこれで自信を持って進んでくれるなっていう本当に始まったばっかりこれからいろいろ挑戦していってくれるといいなと思って今月平口さんはある場所を訪れましたこれまで数々のタイトル戦でコマを提供してきた老舗5番手平口さんのコマを扱いたいと言いますいいですねぇ困ってだんだん成長しますので大切に使ってそういう長く良い駒になる駒ですね商談が終わった後店主があるものを取り出しましたこの前の名人戦で使った駒があるんですけど去年、名人銭で使われた盛り上げごま低く盛り上げて品良くするというのは難しい素晴らしいですね平口さんが目指す高みですこういった感じで作れればまだまだですけどただ、多分、咲く。"
     # nlp = init_nlp()
     # doc = nlp(raw.strip())

@@ -5,9 +5,12 @@ from rich import print
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from core.config_utils import update_key
 
-AUDIO_DIR = "output/audio"
-RAW_AUDIO_FILE = "output/audio/raw.mp3"
-CLEANED_CHUNKS_EXCEL_PATH = "output/log/cleaned_chunks.xlsx"
+def get_audio_dir(history_dir):
+    return os.path.join(history_dir, "audio")
+def get_raw_audio_file(history_dir):
+    return os.path.join(get_audio_dir(history_dir), "raw.mp3")
+def get_cleaned_chunks_excel_path(history_dir):
+    return os.path.join(history_dir, "log", "cleaned_chunks.xlsx")
 
 def compress_audio(input_file: str, output_file: str):
     """将输入音频文件压缩为低质量音频文件，用于转录"""
@@ -22,18 +25,20 @@ def compress_audio(input_file: str, output_file: str):
         print(f"🗜️ Converted <{input_file}> to <{output_file}> with FFmpeg")
     return output_file
 
-def convert_video_to_audio(video_file: str):
-    os.makedirs(AUDIO_DIR, exist_ok=True)
-    if not os.path.exists(RAW_AUDIO_FILE):
+def convert_video_to_audio(video_file: str, history_dir: str):
+    audio_dir = get_audio_dir(history_dir)
+    raw_audio_file = get_raw_audio_file(history_dir)
+    os.makedirs(audio_dir, exist_ok=True)
+    if not os.path.exists(raw_audio_file):
         print(f"🎬➡️🎵 Converting to high quality audio with FFmpeg ......")
         subprocess.run([
             'ffmpeg', '-y', '-i', video_file, '-vn',
             '-c:a', 'libmp3lame', '-b:a', '128k',
             '-ar', '32000',
             '-ac', '1', 
-            '-metadata', 'encoding=UTF-8', RAW_AUDIO_FILE
+            '-metadata', 'encoding=UTF-8', raw_audio_file
         ], check=True, stderr=subprocess.PIPE)
-        print(f"🎬➡️🎵 Converted <{video_file}> to <{RAW_AUDIO_FILE}> with FFmpeg\n")
+        print(f"🎬➡️🎵 Converted <{video_file}> to <{raw_audio_file}> with FFmpeg\n")
 
 def _detect_silence(audio_file: str, start: float, end: float) -> List[float]:
     """Detect silence points in the given audio segment"""
@@ -65,7 +70,7 @@ def get_audio_duration(audio_file: str) -> float:
         duration = 0
     return duration
 
-def split_audio(audio_file: str, target_len: int = 30*60, win: int = 60) -> List[Tuple[float, float]]:
+def split_audio(audio_file: str, history_dir: str, target_len: int = 30*60, win: int = 60) -> List[Tuple[float, float]]:
     # 30 min 16000 Hz 96kbps ~ 22MB < 25MB required by whisper
     print("[bold blue]🔪 Starting audio segmentation...[/]")
     
@@ -94,7 +99,7 @@ def split_audio(audio_file: str, target_len: int = 30*60, win: int = 60) -> List
     print(f"🔪 Audio split into {len(segments)} segments")
     return segments
 
-def process_transcription(result: Dict) -> pd.DataFrame:
+def process_transcription(result: Dict, history_dir: str) -> pd.DataFrame:
     all_words = []
     for segment in result['segments']:
         for word in segment['words']:
@@ -139,25 +144,24 @@ def process_transcription(result: Dict) -> pd.DataFrame:
     
     return pd.DataFrame(all_words)
 
-def save_results(df: pd.DataFrame):
-    os.makedirs('output/log', exist_ok=True)
-
+def save_results(df: pd.DataFrame, history_dir: str):
+    log_dir = os.path.join(history_dir, 'log')
+    os.makedirs(log_dir, exist_ok=True)
+    cleaned_chunks_excel_path = get_cleaned_chunks_excel_path(history_dir)
     # Remove rows where 'text' is empty
     initial_rows = len(df)
     df = df[df['text'].str.len() > 0]
     removed_rows = initial_rows - len(df)
     if removed_rows > 0:
         print(f"ℹ️ Removed {removed_rows} row(s) with empty text.")
-    
     # Check for and remove words longer than 20 characters
     long_words = df[df['text'].str.len() > 20]
     if not long_words.empty:
         print(f"⚠️ Warning: Detected {len(long_words)} word(s) longer than 20 characters. These will be removed.")
         df = df[df['text'].str.len() <= 20]
-    
     df['text'] = df['text'].apply(lambda x: f'"{x}"')
-    df.to_excel(CLEANED_CHUNKS_EXCEL_PATH, index=False)
-    print(f"📊 Excel file saved to {CLEANED_CHUNKS_EXCEL_PATH}")
+    df.to_excel(cleaned_chunks_excel_path, index=False)
+    print(f"📊 Excel file saved to {cleaned_chunks_excel_path}")
 
 def save_language(language: str):
     update_key("whisper.detected_language", language)

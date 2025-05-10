@@ -50,24 +50,21 @@ def split_by_comma(text, nlp):
     sentences.append(doc[start:].text.strip())
     return sentences
 
-def split_by_comma_main(nlp):
-
-    with open("output/log/sentence_by_mark.txt", "r", encoding="utf-8") as input_file:
+def split_by_comma_main(nlp, history_dir):
+    sentence_by_mark_path = os.path.join(history_dir, "log", "sentence_by_mark.txt")
+    with open(sentence_by_mark_path, "r", encoding="utf-8") as input_file:
         sentences = input_file.readlines()
-
     all_split_sentences = []
     for sentence in sentences:
         split_sentences = split_by_comma(sentence.strip(), nlp)
         all_split_sentences.extend(split_sentences)
-
-    with open("output/log/sentence_by_comma.txt", "w", encoding="utf-8") as output_file:
+    sentence_by_comma_path = os.path.join(history_dir, "log", "sentence_by_comma.txt")
+    with open(sentence_by_comma_path, "w", encoding="utf-8") as output_file:
         for sentence in all_split_sentences:
             output_file.write(sentence + "\n")
-    
     # delete the original file
-    os.remove("output/log/sentence_by_mark.txt")
-    
-    print("[green]💾 Sentences split by commas saved to →  `sentences_by_comma.txt`[/green]")
+    os.remove(sentence_by_mark_path)
+    print(f"[green]💾 Sentences split by commas saved to →  `{sentence_by_comma_path}`[/green]")
 
 if __name__ == "__main__":
     nlp = init_nlp()

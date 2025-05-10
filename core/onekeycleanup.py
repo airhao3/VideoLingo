@@ -1,46 +1,67 @@
 import os, sys
 import glob
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import shutil
+import datetime
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def cleanup(history_dir="history"):
-    # Get video file name
+    # 获取output目录下所有视频文件（原始和生成）
     video_files = [f for f in os.listdir('output') if f.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']]
-    if len(video_files) != 1:
-        raise FileNotFoundError('Please upload exactly one video file to the output directory.')
-    video_file = os.path.join('output', video_files[0])
-    video_name = video_file.split("/")[1]
-    video_name = os.path.splitext(video_name)[0]
-    video_name = sanitize_filename(video_name)
-    
-    # Create required folders
+    if len(video_files) == 0:
+        raise FileNotFoundError('No video file found in the output directory.')
     os.makedirs(history_dir, exist_ok=True)
-    video_history_dir = os.path.join(history_dir, video_name)
-    log_dir = os.path.join(video_history_dir, "log")
-    gpt_log_dir = os.path.join(video_history_dir, "gpt_log")
-    os.makedirs(log_dir, exist_ok=True)
-    os.makedirs(gpt_log_dir, exist_ok=True)
-
-    # Move non-log files
-    for file in glob.glob("output/*"):
-        if not file.endswith(('log', 'gpt_log')):
-            move_file(file, video_history_dir)
-
-    # Move log files
-    for file in glob.glob("output/log/*"):
-        move_file(file, log_dir)
-
-    # Move gpt_log files
-    for file in glob.glob("output/gpt_log/*"):
-        move_file(file, gpt_log_dir)
-
-    # Delete empty output directories
-    try:
-        os.rmdir("output/log")
-        os.rmdir("output/gpt_log")
-        os.rmdir("output")
-    except OSError:
-        pass  # Ignore errors when deleting directories
+    processed_files = set()
+    for video_file in video_files:
+        video_name = os.path.splitext(video_file)[0]
+        video_name = sanitize_filename(video_name)
+        # 归档目录，若重名则加时间戳
+        video_history_dir = os.path.join(history_dir, video_name)
+        if os.path.exists(video_history_dir):
+            video_history_dir += '_' + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        os.makedirs(video_history_dir)
+        # 创建子目录
+        log_dir = os.path.join(video_history_dir, "log")
+        gpt_log_dir = os.path.join(video_history_dir, "gpt_log")
+        audio_dir = os.path.join(video_history_dir, "audio")
+        os.makedirs(log_dir, exist_ok=True)
+        os.makedirs(gpt_log_dir, exist_ok=True)
+        os.makedirs(audio_dir, exist_ok=True)
+        # 归档output下的文件
+        for file in os.listdir('output'):
+            src = os.path.join('output', file)
+            if file in processed_files:
+                continue
+            if os.path.isfile(src):
+                # 所有视频文件都移动
+                if file.split('.')[-1].lower() in ['mp4','mov','avi','mkv','flv','wmv','webm']:
+                    shutil.move(src, os.path.join(video_history_dir, file))
+                    processed_files.add(file)
+                elif file.endswith('.srt'):
+                    shutil.move(src, os.path.join(video_history_dir, file))
+                    processed_files.add(file)
+            elif os.path.isdir(src):
+                if file == 'audio':
+                    shutil.move(src, audio_dir)
+                    processed_files.add(file)
+                elif file == 'log':
+                    shutil.move(src, log_dir)
+                    processed_files.add(file)
+                elif file == 'gpt_log':
+                    shutil.move(src, gpt_log_dir)
+                    processed_files.add(file)
+                else:
+                    shutil.move(src, os.path.join(video_history_dir, file))
+                    processed_files.add(file)
+    # 最后彻底清空output目录
+    for f in os.listdir('output'):
+        fp = os.path.join('output', f)
+        try:
+            if os.path.isfile(fp):
+                os.remove(fp)
+            elif os.path.isdir(fp):
+                shutil.rmtree(fp)
+        except Exception as e:
+            print(f"Failed to delete {fp}: {e}")
 
 def move_file(src, dst):
     try:
@@ -73,7 +94,6 @@ def move_file(src, dst):
         print(f"Error message: {str(e)}")
 
 def sanitize_filename(filename):
-    # Remove or replace disallowed characters
     invalid_chars = '<>:"/\\|?*'
     for char in invalid_chars:
         filename = filename.replace(char, '_')
